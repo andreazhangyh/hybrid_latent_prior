@@ -1,0 +1,1 @@
+pip install torch-scatter==2.0.8 -f https://data.pyg.org/whl/torch-1.8.1+cu111.html 

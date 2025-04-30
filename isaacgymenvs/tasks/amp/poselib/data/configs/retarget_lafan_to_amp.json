@@ -1,0 +1,28 @@
+{
+    "source_motion": "data/LAFAN/train/walk1_subject1.npy",
+    "target_motion_path": "data/AMP/test.npy",
+    "source_tpose": "data/lafan_tpose.npy",
+    "target_tpose": "data/amp_humanoid_tpose.npy",
+    "joint_mapping": {
+         "Hips": "pelvis",
+         "LeftUpLeg": "left_thigh",
+         "LeftLeg": "left_shin",
+         "LeftFoot": "left_foot",
+         "RightUpLeg": "right_thigh",
+         "RightLeg": "right_shin",
+         "RightFoot": "right_foot",
+         "Spine": "torso",
+         "Neck": "head",
+         "LeftArm": "left_upper_arm",
+         "LeftForeArm": "left_lower_arm",
+         "LeftHand": "left_hand",
+         "RightArm": "right_upper_arm",
+         "RightForeArm": "right_lower_arm",
+         "RightHand": "right_hand"
+    },
+    "rotation": [0, 0, 0, 1],
+    "scale": 1.0,
+	"root_height_offset": 0.05,
+	"trim_frame_beg": -1,
+	"trim_frame_end": -1
+}
