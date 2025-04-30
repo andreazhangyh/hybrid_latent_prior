@@ -40,7 +40,7 @@ env:
   enableEarlyTermination: ${resolve_default:True, ${...enable_et}}
   PositionalEncoding: ${resolve_default:'time', ${...positional_encoding}}
 
-  motion_file: ${resolve_default:"LAFAN_LOCO",${...motion_dataset}}
+  motion_file: ${resolve_default:"LAFAN_ALL",${...motion_dataset}}
   energyRewCoef: ${resolve_default:0,${...energy_rew_coef}}
 
 
