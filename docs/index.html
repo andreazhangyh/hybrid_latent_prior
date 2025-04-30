@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hybrid Eurographics 2025</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+    <link
+      href="https://fonts.googleapis.com/css2?family=Encode+Sans:wght@300;400;500;600&family=Roboto+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link href='https://fonts.googleapis.com/css?family=Architects Daughter' rel='stylesheet'>
+    <link href='https://fonts.googleapis.com/css?family=Quicksand' rel='stylesheet'>
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Roboto+Mono&display=swap" rel="stylesheet">
+
+    <!-- Bulma -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.1/css/bulma.min.css" />
+    <link rel="stylesheet" href="./css/styles.css" />
+    <script src="./js/bulma_toggle.js"></script>
+
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/5fd1dd8417.js" crossorigin="anonymous"></script>
+
+    <!-- Academicons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png"/>
+    <link rel="icon" sizes="32x32" href="./assets/favicon-32x32.png"/>
+    <link rel="icon" sizes="16x16" href="./assets/favicon-16x16.png"/>
+
+    <!-- MathJax -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  </head>
+
+  <body>
+
+    <!-- title / authors / icons -->
+    <section class="hero">
+      <div class="hero-body">
+        <div class="container is-max-widescreen has-text-centered">
+          <!-- title -->
+          <h1 class="title is-size-1 is-size-2-mobile publication-title">
+            Versatile Physics-based Character Control with Hybrid Latent Representation
+          </h1>
+          <div class="is-size-4-tablet publication-institute">
+            <span class="author-block">Eurographics 2025<br/></span>
+          </div>
+
+          <!-- authors -->
+          <div class="container is-max-desktop has-text-centered author-list">
+            <div class="columns is-mobile is-centered is-gapless">
+              <div class="column is-2-tablet is-size-5-tablet publication-authors">
+                <a class="author-blocks" href="https://jinseokbae.github.io">Jinseok Bae</a>
+              </div>
+              <div class="column is-2-tablet is-size-5-tablet publication-authors">
+                <a class="author-blocks" href="https://sites.google.com/view/jungdam/home">Jungdam Won</a>
+              </div>
+              <div class="column is-2-tablet is-size-5-tablet publication-authors">
+                <a class="author-blocks" href="https://3d.snu.ac.kr/members">Donggeun Lim</a>
+              </div>
+              <div class="column is-2-tablet is-size-5-tablet publication-authors">
+                <a class="author-blocks" href="https://inwoohwang.me/">Inwoo Hwang</a>
+              </div>
+              <div class="column is-2-tablet is-size-5-tablet publication-authors">
+                <a class="author-blocks" href="http://3d.snu.ac.kr/members">Young Min Kim</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="is-size-5-tablet publication-institute">
+            <span class="author-block">Seoul National University</span>
+          </div>
+          
+          <div class="logo-list">
+            <a class="lab-logo" href="https://3d.snu.ac.kr">
+              <img src="./assets/3dv.png">
+            </a>
+          </div>
+
+          <!-- icons -->
+          <div class="is-size-5 link-blocks">
+            <a class="button link-button is-rounded" href="https://onlinelibrary.wiley.com/doi/10.1111/cgf.70018?af=R">
+              <span class="icon">
+                <i class="fa-solid fa-file"></i>
+              </span>
+              <span>Paper</span>
+            </a>
+            <a class="button link-button is-rounded" href="https://arxiv.org/abs/2503.12814">
+              <span class="icon">
+                <i class="ai ai-arxiv"></i>
+              </span>
+              <span>arXiv</span>
+            </a>
+            <a class="button link-button is-rounded" href="https://www.youtube.com/watch?v=dSHMMwQ9GHE">
+              <span class="icon">
+                <i class="fa-brands fa-youtube"></i>
+              </span>
+              <span>Video</span>
+            </a>
+            <a class="button link-button is-rounded" href="https://github.com/jinseokbae/hybrid_latent_prior">
+              <span class="icon">
+                <i class="fab fa-github"></i>
+              </span>
+              <span>Code</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- teasor -->
+    <section class="hero">
+      <div class="container is-max-desktop">
+        <div class="hero-body">
+          <img src="./assets/teaser.png" width="100%" style="display: block; margin: auto" />
+          <h2 class="tldr">
+            <i>Our <b>hybrid latent representation</b> serves as a versatile motion prior such that the agent can robustly adapt to a range of challenging downstream tasks.</i>
+          </h2>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container is-max-desktop">
+        <div class="column is-full-width is-centered has-text-centered">
+          <h2 class="subtitle is-size-3 has-text-weight-medium publication-keywords">
+            Abstract
+          </h2>
+          <div class="content has-text-justified">
+            <p>
+              We present a versatile latent representation that enables physically simulated character to efficiently utilize motion priors. To build a powerful motion embedding that is shared across multiple tasks, the physics controller should employ rich latent space that is easily explored and capable of generating high-quality motion. We propose integrating continuous and discrete latent representations to build a versatile motion prior that can be adapted to a wide range of challenging control tasks. Specifically, we build a discrete latent model to capture distinctive posterior distribution without collapse, and simultaneously augment the sampled vector with the continuous residuals to generate high-quality, smooth motion without jittering. We further incorporate Residual Vector Quantization, which not only maximizes the capacity of the discrete motion prior, but also efficiently abstracts the action space during the task learning phase. We demonstrate that our agent can produce diverse yet smooth motions simply by traversing the learned motion prior through unconditional motion generation. Furthermore, our model robustly satisfies sparse goal conditions with highly expressive natural motions, including head-mounted device tracking and motion in-betweening at irregular intervals, which could not be achieved with existing latent representations.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="container is-max-desktop">
+        <div class="column is-full-width is-centered has-text-centered">
+          <h2 class="subtitle is-size-3 has-text-weight-medium publication-keywords">
+            Method
+          </h2>
+          <img src="./assets/pipeline.png" width="50%" style="display: block; margin: auto" />
+        </div>
+          <p class="normal-text has-text-justified">
+            <!-- Visualization of the pipeline in our system.  -->
+            <!-- <b><font color='grey'>Kinematic style discriminators</font></b> \(\{D_{\phi_k}\}_K\) are trained with part-wise motion captures and <b><font color='grey'>interaction discriminators</font></b> \(\{D_{\psi_n}\}_N\) are trained with demo trajectories from the pretrained interaction gym.  -->
+            <!-- Note partial observations \(\{o_k\}_K,\{u_n\}_N\) and hand actions \(\{y_n\}_N\) are subsets of state \(s\) and action \(a\) of the whole-body agent. -->
+            Network architecture for <b>hybrid</b> motion prior. 
+            (<i>Left</i>) During the <b><font color='grey'>imitation learning phase</font></b>, posterior and prior network output latent vector \(z\) and \(z_p\) given the current state \(s\) and target state \(\tilde{s}\). 
+            Next, the network <b>quantizes the marginal value</b> of \(y=z-z_p\) into \(\bar{y}\), then reconstructs the final latent representation \(\bar{z}\) by biasing the quantized value with \(z_p\). 
+            Once trained, the parameters of the codebook and prior network are frozen. 
+            (<i>Right</i>) In the <b><font color='grey'>task learning phase</font></b>, high-level policy outputs categorical distribution, and then samples the index for the pretrained codebook. 
+            The latent \(\bar{z}\) is then reconstructed with the selected \(\bar{y}\) and continuous vector \(z_p\).
+          </p>
+      </div>
+      </section>
+
+    
+    <section class="section">
+      <div class="container is-max-desktop">
+        <div class="column is full-width is-centered has-text-centered">
+          <h2 class="subtitle is-size-3 has-text-weight-medium publication-keywords">
+            Video
+          </h2>
+        </div>
+        <div class="publication-video">
+          <iframe
+            src="https://www.youtube.com/embed/dSHMMwQ9GHE"
+            allow="autoplay; encrypted-media"
+            allowfullscreen="true"
+          ></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- BibTex sectoion -->
+    <section class="section">
+      <div class="container is-max-desktop">
+        <div class="column is-full-width is-centered has-text-centered">
+          <h2 class="subtitle is-size-3 has-text-weight-medium publication-keywords">BibTeX</h2>
+        </div>
+        <div class="box bibtex-box">
+          <pre>
+            @inproceedings{bae2025versatile,
+              title={Versatile Physics-based Character Control with Hybrid Latent Representation},
+              author={Bae, Jinseok and Won, Jungdam and Lim, Donggeun and Hwang, Inwoo and Kim, Young Min},
+              booktitle={Computer Graphics Forum},
+              pages={e70018},
+              year={2025},
+              organization={Wiley Online Library}
+            }
+          </pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer section -->
+    <footer class="footer" style="padding-top: 1rem">
+      <!-- navigation -->
+      <a role="button" class="navbar-burger" data-target="moreResearch" aria-label="menu" aria-expanded="false">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </a>
+      <div class="navbar-menu" id="moreResearch">
+        <div class="navbar-start" style="flex-grow: 1; justify-content: center">
+          <div class="block is-flex" style="margin-bottom: 0px">
+            <a class="navbar-item" href="https://jinseokbae.github.io">
+              <span class="icon">
+                <i class="fas fa-home"></i>
+              </span>
+            </a>
+            <a class="navbar-item" href="https://github.com/jinseokbae">
+              <span class="icon">
+                <i class="fab fa-github"></i>
+              </span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- license -->
+      <div class="content has-text-centered" style="margin-top: 1.6rem">
+        <p>
+          This website is licensed under a
+          <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"
+            >Creative Commons Attribution-ShareAlike 4.0 International License</a
+          >
+        </p>
+      </div>
+    </footer>
+  </body>
+
+</html>
