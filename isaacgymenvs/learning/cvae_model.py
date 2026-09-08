@@ -91,6 +91,11 @@ class ModelcVAEContinuous(ModelA2CContinuousLogStd):
                     result["post_mu"] = info["post_mu"]
                 if "prior_mu" in info:
                     result["prior_mu"] = info["prior_mu"]
+                for key, value in info.items():
+                    if key.startswith("latent_align_"):
+                        if value.ndim > 0:
+                            value = value.mean()
+                        result[key] = value.detach()
             else:
                 selected_action = distr.sample()
                 neglogp = self.neglogp(selected_action, mu, sigma, logstd)

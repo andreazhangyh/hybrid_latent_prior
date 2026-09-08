@@ -558,6 +558,7 @@ class cVAEAgent(common_agent.CommonAgent):
         # for VQ, ours
         if "vae_commit_loss" in res_dict:
             train_result["vae_commit_loss_non_rl"] = vae_commit_loss
+        self._record_latent_align_result(res_dict, train_result)
         # for latent regularization loss
         if self.use_latent_regularize:
             train_result["latent_reg_loss_non_rl"] = latent_reg_loss
@@ -708,6 +709,7 @@ class cVAEAgent(common_agent.CommonAgent):
             rl_info["vae_kl_loss"] = vae_kl_loss
         if "vae_commit_loss" in res_dict:
             rl_info["vae_commit_loss"] = vae_commit_loss
+        self._record_latent_align_result(res_dict, rl_info)
         if self.use_latent_regularize:
             rl_info["latent_reg_loss"] = latent_reg_loss
         self.train_result.update(rl_info)
@@ -728,6 +730,7 @@ class cVAEAgent(common_agent.CommonAgent):
         if self._enc_type in ["continuous", "hybrid"]:
             self._enc_scale = config.get("enc_scale", 0.3)
             self._continuous_enc_style = config.get("continuous_enc_style", "standard")
+            self._latent_align_config = config.get("latent_align", None)
         if self._enc_type in ["discrete", "hybrid"]:
             self._code_num = config.get("code_num", 512)
             self._quant_type = config.get("quant_type", "basic")
@@ -750,6 +753,7 @@ class cVAEAgent(common_agent.CommonAgent):
         if self._enc_type in ["continuous", "hybrid"]:
             config["enc_scale"] = self._enc_scale
             config["continuous_enc_style"] = self._continuous_enc_style
+            config["latent_align"] = self._latent_align_config
         if self._enc_type in ["discrete", "hybrid"]:
             config["code_num"] = self._code_num
             config["quant_type"] = self._quant_type
@@ -812,6 +816,19 @@ class cVAEAgent(common_agent.CommonAgent):
     def _record_train_batch_info(self, batch_dict, train_info):
         return
 
+    def _record_latent_align_result(self, res_dict, train_result):
+        for key, value in res_dict.items():
+            if key.startswith("latent_align_"):
+                train_result[key] = value.detach()
+        return
+
+    def _log_latent_align_info(self, train_info, frame):
+        for key, values in train_info.items():
+            if key.startswith("latent_align_"):
+                tag = "latent_align/" + key[len("latent_align_"):]
+                self.writer.add_scalar(tag, torch_ext.mean_list(values).item(), frame)
+        return
+
     # log info for wandb
     def _log_train_info(self, train_info, frame):
         if not self.distill: # for RL
@@ -834,6 +851,7 @@ class cVAEAgent(common_agent.CommonAgent):
                     torch_ext.mean_list(train_info["latent_reg_loss"]).item(),
                     frame,
                 )
+            self._log_latent_align_info(train_info, frame)
 
         else: # for distill
             self.writer.add_scalar(
@@ -859,4 +877,5 @@ class cVAEAgent(common_agent.CommonAgent):
                     torch_ext.mean_list(train_info["latent_reg_loss_non_rl"]).item(),
                     frame,
                 )
+            self._log_latent_align_info(train_info, frame)
         return

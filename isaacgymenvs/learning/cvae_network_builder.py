@@ -36,6 +36,21 @@ from torch.distributions.kl import kl_divergence
 from isaacgymenvs.utils.quantizers import QuantizerSelector
 
 EVALUATE_BINS = False
+
+DEFAULT_LATENT_ALIGN_CONFIG = {
+    "loss_type": "mse",
+    "direction": "bidirectional",
+    "learn_prior_std": False,
+    "reduction": "sum",
+}
+
+
+def _get_config_value(config, key, default):
+    if config is None:
+        return default
+    return config.get(key, default)
+
+
 class cVAEBuilder(network_builder.A2CBuilder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -53,6 +68,7 @@ class cVAEBuilder(network_builder.A2CBuilder):
             if self.enc_type in ["continuous", "hybrid"]:
                 self.enc_scale = kwargs.pop("enc_scale")  # encoder fix scale
                 self.continuous_enc_style = kwargs.pop("continuous_enc_style")  # continuous_enc_style
+                self.latent_align_config = kwargs.pop("latent_align", None)
             if self.enc_type in ["discrete", "hybrid"]:
                 self.code_num = kwargs.pop("code_num")
                 self.quant_type = kwargs.pop("quant_type")
@@ -182,6 +198,8 @@ class cVAEBuilder(network_builder.A2CBuilder):
                 info = dict(kl_loss=enc_dict["kl_loss"], commit_loss=enc_dict["commit_loss"], indices=enc_dict["indices"], prior_z=enc_dict['prior_z'], post_mu=enc_dict['post_mu'], prior_mu=enc_dict['prior_mu'])
                 z = enc_dict["post_z"]
 
+            info.update({key: value for key, value in enc_dict.items()
+                         if key.startswith("latent_align_")})
             info["latent"] = z 
             a_out = self.decoder(obs, z)
 
@@ -319,12 +337,14 @@ class cVAEBuilder(network_builder.A2CBuilder):
                     initializer=self.init_factory.create(**self.initializer["enc"]),
                     fixed_scale=self.enc_scale,
                     style=self.continuous_enc_style,
+                    kwargs=dict(latent_align=self.latent_align_config),
                 )
             elif self.enc_type == "hybrid":
                 kwargs = dict(
                     code_num=self.code_num,
                     num_quants=self.num_quants,
-                    quant_type=self.quant_type
+                    quant_type=self.quant_type,
+                    latent_align=self.latent_align_config,
                 )
                 assert self.continuous_enc_style in ["quantcond", "quantdirect"]
                 self.encoder = ContinuousEncoder(
@@ -404,9 +424,11 @@ class ContinuousEncoder(nn.Module):
         self, state_dim, goal_dim, latent_dim, units, activation, initializer, style="controlvae", fixed_scale=0.5, kwargs=None
     ):
         super().__init__()
+        kwargs = kwargs or {}
         self._units = units
         self._initializer = initializer
         self._style = style  # ["controlvae"(Heyuan Yao et al. 2022), "standard"(Won et al. 2022), "statecond"]
+        self._latent_align_config = self._parse_latent_align_config(kwargs.get("latent_align", None))
         if self._style == "controlvae":
             self._scale = fixed_scale
         elif self._style in ["standard", "statecond", "quantcond", "quantdirect"]:
@@ -553,9 +575,11 @@ class ContinuousEncoder(nn.Module):
             else:
                 post_z = post_loc
                 prior_z = prior_loc
-                kl_loss = (post_loc - prior_loc).pow(2).sum(dim=-1)
+                kl_loss = self._calc_latent_align_loss(post_loc, prior_loc)
 
         out_dict = dict(post_z=post_z, prior_z=prior_z, kl_loss=kl_loss, post_mu=post_loc, prior_mu=prior_loc)
+        if self._style in ["quantcond", "quantdirect"]:
+            out_dict.update(self._calc_latent_align_stats(post_loc, prior_loc, indices, kl_loss))
         if self._style in ["quantcond", "quantdirect"]:
             out_dict.update(dict(
                 indices=indices,
@@ -586,6 +610,53 @@ class ContinuousEncoder(nn.Module):
     # only using for controlvae setting
     def controlvae_kl_loss(self, post_loc, prior_loc):
         return 0.5 * (post_loc - prior_loc) ** 2 / (self._scale**2)
+
+    def _parse_latent_align_config(self, config):
+        parsed = {}
+        for key, default in DEFAULT_LATENT_ALIGN_CONFIG.items():
+            parsed[key] = _get_config_value(config, key, default)
+        if parsed["loss_type"] != "mse":
+            raise NotImplementedError("Only latent_align.loss_type=mse is supported in Phase 1")
+        if parsed["direction"] not in ["bidirectional", "post_to_prior"]:
+            raise ValueError("latent_align.direction must be 'bidirectional' or 'post_to_prior'")
+        if parsed["learn_prior_std"]:
+            raise NotImplementedError("latent_align.learn_prior_std is reserved for a later phase")
+        if parsed["reduction"] != "sum":
+            raise NotImplementedError("Only latent_align.reduction=sum is supported in Phase 1")
+        return parsed
+
+    def _calc_latent_align_loss(self, post_loc, prior_loc):
+        align_target = post_loc
+        if self._latent_align_config["direction"] == "post_to_prior":
+            align_target = align_target.detach()
+        return (align_target - prior_loc).pow(2).sum(dim=-1)
+
+    def _calc_latent_align_stats(self, post_loc, prior_loc, indices, align_loss):
+        with torch.no_grad():
+            residual = post_loc - prior_loc
+            stats = {}
+            layer_indices = indices.detach().reshape(post_loc.shape[0], -1)
+            for layer in range(layer_indices.shape[-1]):
+                active = layer_indices[:, layer]
+                active = active[active >= 0]
+                entropy = post_loc.new_zeros(())
+                perplexity = post_loc.new_zeros(())
+                if active.numel():
+                    _, counts = torch.unique(active, return_counts=True)
+                    probs = counts.float() / counts.sum()
+                    entropy = -(probs * probs.log()).sum()
+                    perplexity = entropy.exp()
+                stats["latent_align_code_entropy_layer_%d" % layer] = entropy
+                stats["latent_align_code_perplexity_layer_%d" % layer] = perplexity
+                stats["latent_align_code_active_fraction_layer_%d" % layer] = (
+                    post_loc.new_tensor(active.numel() / post_loc.shape[0]))
+        stats.update({
+            "latent_align_loss": align_loss.detach(),
+            "latent_align_post_norm": post_loc.detach().norm(dim=-1),
+            "latent_align_prior_norm": prior_loc.detach().norm(dim=-1),
+            "latent_align_residual_norm": residual.detach().norm(dim=-1),
+        })
+        return stats
 
     def init_params(self):
         for m in self.modules():
@@ -742,9 +813,5 @@ class ValueNet(nn.Module):
                 if getattr(m, "bias", None) is not None:
                     torch.nn.init.zeros_(m.bias)
         return
-
-
-
-
 
 

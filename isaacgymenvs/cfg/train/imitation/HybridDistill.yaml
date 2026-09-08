@@ -121,6 +121,12 @@ params:
     # cvae related
     vae_kl_loss_coef: ${resolve_default:0.1,${....vae_kl_loss_coef}}
     vae_kl_schedule: ${resolve_default:True,${....vae_kl_schedule}}
+    latent_align:
+      loss_type: mse
+      direction: bidirectional
+      learn_prior_std: false
+      reduction: sum
+    # Alignment weight and schedule continue to use vae_kl_* above.
     expert_loss_coef: ${resolve_default:10.0,${....expert_loss_coef}}
     
     # learning rate for online distillation
