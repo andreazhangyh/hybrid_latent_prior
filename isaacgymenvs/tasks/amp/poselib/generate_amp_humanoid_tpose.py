@@ -30,12 +30,13 @@
 import torch
 from poselib.core.rotation3d import *
 from poselib.skeleton.skeleton3d import SkeletonState, SkeletonTree
-from poselib.visualization.common import plot_skeleton_state
 
 """
 This scripts imports a MJCF XML file and converts the skeleton into a SkeletonTree format.
 It then generates a zero rotation pose, and adjusts the pose into a T-Pose.
 """
+
+VISUALIZE = False
 
 # import MJCF file
 xml_path = "../../../../assets/mjcf/amp_humanoid.xml"
@@ -59,4 +60,7 @@ translation += torch.tensor([0, 0, 0.9])
 
 # save and visualize T-pose
 zero_pose.to_file("data/amp_humanoid_tpose.npy")
-plot_skeleton_state(zero_pose)
+if VISUALIZE:
+    from poselib.visualization.common import plot_skeleton_state
+
+    plot_skeleton_state(zero_pose)

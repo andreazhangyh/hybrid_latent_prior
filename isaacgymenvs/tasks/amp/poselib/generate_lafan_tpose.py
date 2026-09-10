@@ -26,19 +26,38 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
+from pathlib import Path
+
 import numpy as np
 import torch
 from poselib.core.rotation3d import *
 from poselib.skeleton.skeleton3d import SkeletonState, SkeletonTree
-from poselib.visualization.common import plot_skeleton_state
 
 """
 This scripts imports a MJCF XML file and converts the skeleton into a SkeletonTree format.
 It then generates a zero rotation pose, and adjusts the pose into a T-Pose.
 """
 
+VISUALIZE = False
+
+
+def resolve_tree_file():
+    tree_file = os.environ.get("LAFAN_TPOSE_SOURCE", "")
+    if tree_file:
+        return tree_file
+
+    candidates = sorted(Path("data/LAFAN").glob("lafan1_npz_*/train/walk1_subject1.npz"))
+    if not candidates:
+        raise FileNotFoundError(
+            "No walk1_subject1.npz found under data/LAFAN/lafan1_npz_*/train. "
+            "Run lafan_bvh_to_npz.py first or set LAFAN_TPOSE_SOURCE."
+        )
+    return str(candidates[-1])
+
+
 # import MJCF file
-tree_file = "data/LAFAN/lafan1_modified_npz/train/walk1_subject1.npz"
+tree_file = resolve_tree_file()
 tree_dict = np.load(tree_file, allow_pickle=True)["arr_0"].item()
 node_names = tree_dict["node_names"]
 parent_indices = torch.from_numpy(tree_dict["parent_indices"])
@@ -79,4 +98,7 @@ print(root_offset) # 0.9563524127006531
 
 # save and visualize T-pose
 zero_pose.to_file("data/lafan_tpose.npy")
-plot_skeleton_state(zero_pose)
+if VISUALIZE:
+    from poselib.visualization.common import plot_skeleton_state
+
+    plot_skeleton_state(zero_pose)

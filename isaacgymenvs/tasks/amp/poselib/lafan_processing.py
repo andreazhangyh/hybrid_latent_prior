@@ -7,25 +7,42 @@ import numpy as np
 import torch
 from poselib.core.rotation3d import *
 from poselib.skeleton.skeleton3d import SkeletonMotion, SkeletonState, SkeletonTree
-from poselib.visualization.common import plot_skeleton_motion_interactive, plot_skeleton_state
 from retarget_motion import project_joints
 from tqdm import tqdm
 
 VISUALIZE = False
 RETARGET_CONFIG = "data/configs/retarget_lafan_to_amp.json"
-LAFAN_NPZ_ROOT_DIR = "data/LAFAN/lafan1_npz_2024-Nov-20"  # need to be processed from bvh
-OUT_TYPE = "npy"
+LAFAN_NPZ_ROOT_DIR = os.environ.get("LAFAN_NPZ_ROOT_DIR", "")
+OUT_TYPE = os.environ.get("LAFAN_OUT_TYPE", "npy")
 
 SUBSET = {
     "loco": ["run", "walk", "sprint"],
     "jumps": ["jumps"]}
 
-MODE = "all"
+MODE = os.environ.get("LAFAN_MODE", "all")
+
+
+def resolve_lafan_npz_root():
+    if LAFAN_NPZ_ROOT_DIR:
+        return LAFAN_NPZ_ROOT_DIR
+
+    candidates = sorted(
+        path
+        for path in Path("data/LAFAN").glob("lafan1_npz_*")
+        if path.is_dir()
+    )
+    if not candidates:
+        raise FileNotFoundError(
+            "No data/LAFAN/lafan1_npz_* directory found. Run lafan_bvh_to_npz.py "
+            "and create the symlink described in README.md, or set LAFAN_NPZ_ROOT_DIR."
+        )
+    return str(candidates[-1])
 
 
 def main():
     # source npz file path
     splits = ["train", "test"]
+    lafan_npz_root_dir = resolve_lafan_npz_root()
 
     # init - retarget
     with open(RETARGET_CONFIG) as f:
@@ -34,6 +51,8 @@ def main():
     # load and visualize t-pose files
     target_tpose = SkeletonState.from_file(retarget_data["target_tpose"])
     if VISUALIZE:
+        from poselib.visualization.common import plot_skeleton_state
+
         plot_skeleton_state(target_tpose)
     rotation_to_target_skeleton = torch.tensor(retarget_data["rotation"])
 
@@ -50,7 +69,7 @@ def main():
             actors = ["subject1", "subject2", "subject3", "subject4"]
         else:
             actors = ["subject5"]
-        npz_files = list(Path(os.path.join(LAFAN_NPZ_ROOT_DIR, split)).rglob("*.npz"))
+        npz_files = list(Path(os.path.join(lafan_npz_root_dir, split)).rglob("*.npz"))
 
         os.makedirs(save_root_dir, exist_ok=True)
         for npz_file in tqdm(npz_files):
@@ -90,6 +109,8 @@ def main():
                 )
                 source_tpose = zero_pose
                 if VISUALIZE:
+                    from poselib.visualization.common import plot_skeleton_state
+
                     plot_skeleton_state(source_tpose)
 
                 # if VISUALIZE:
@@ -152,6 +173,8 @@ def main():
 
                 # visualize retargeted motion
                 if VISUALIZE:
+                    from poselib.visualization.common import plot_skeleton_motion_interactive
+
                     plot_skeleton_motion_interactive(target_motion)
 
                 # # save retargeted motion

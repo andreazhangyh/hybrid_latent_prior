@@ -36,10 +36,19 @@ import scipy.ndimage.filters as filters
 import torch
 
 # jinseokbae
-from human_body_prior.body_model.body_model import BodyModel
+try:
+    from human_body_prior.body_model.body_model import BodyModel
+except ImportError:
+    BodyModel = None
 
 from ..core import *
 from .backend.fbx.fbx_read_wrapper import fbx_to_array
+
+
+def _require_body_model():
+    if BodyModel is None:
+        raise ImportError("human_body_prior is required for SMPL/AMASS motion loading.")
+    return BodyModel
 
 
 class SkeletonTree(Serializable):
@@ -1254,7 +1263,8 @@ class SkeletonMotion(SkeletonState):
         dmpl_fname = os.path.join("data/SMPL/dmpls/", subject_gender, "model.npz")
         num_betas = 16  # number of body parameters
         num_dmpls = 8  # number of DMPL parameters
-        bm = BodyModel(bm_fname=bm_fname, num_betas=num_betas, num_dmpls=num_dmpls, dmpl_fname=dmpl_fname).to(
+        body_model = _require_body_model()
+        bm = body_model(bm_fname=bm_fname, num_betas=num_betas, num_dmpls=num_dmpls, dmpl_fname=dmpl_fname).to(
             comp_device
         )
 
@@ -1371,7 +1381,8 @@ class SkeletonMotion(SkeletonState):
         dmpl_fname = os.path.join("data/SMPL/dmpls/", subject_gender, "model.npz")
         num_betas = 16  # number of body parameters
         num_dmpls = 8  # number of DMPL parameters
-        bm = BodyModel(bm_fname=bm_fname, num_betas=num_betas, num_dmpls=num_dmpls, dmpl_fname=dmpl_fname).to(
+        body_model = _require_body_model()
+        bm = body_model(bm_fname=bm_fname, num_betas=num_betas, num_dmpls=num_dmpls, dmpl_fname=dmpl_fname).to(
             comp_device
         )
 

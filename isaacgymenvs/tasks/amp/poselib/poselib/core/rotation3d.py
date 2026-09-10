@@ -164,6 +164,7 @@ def quat_identity(shape: List[int]):
     """
     Construct 3D identity rotation given shape
     """
+    shape = list(shape)  # torch.Size/tuple also occur with PYTORCH_JIT=0.
     w = torch.ones(shape + [1])
     xyz = torch.zeros(shape + [3])
     q = torch.cat([xyz, w], dim=-1)
@@ -217,26 +218,31 @@ def quat_from_rotation_matrix(m):
     y = (((-diag0 + diag1 - diag2 + 1.0) / 4.0).clamp(0.0, None)) ** 0.5
     z = (((-diag0 - diag1 + diag2 + 1.0) / 4.0).clamp(0.0, None)) ** 0.5
 
+    # Pick one branch before changing signs. Multiple >= branches used to
+    # run for ties (e.g. |x|=|y|=|z|=|w|=.5), flipping signs twice and
+    # returning a different rotation for valid signed-permutation matrices.
+    largest = torch.stack([w, x, y, z], dim=-1).argmax(dim=-1)
+
     # Only modify quaternions where w > x, y, z.
-    c0 = (w >= x) & (w >= y) & (w >= z)
+    c0 = largest == 0
     x[c0] *= (m[..., 2, 1][c0] - m[..., 1, 2][c0]).sign()
     y[c0] *= (m[..., 0, 2][c0] - m[..., 2, 0][c0]).sign()
     z[c0] *= (m[..., 1, 0][c0] - m[..., 0, 1][c0]).sign()
 
     # Only modify quaternions where x > w, y, z
-    c1 = (x >= w) & (x >= y) & (x >= z)
+    c1 = largest == 1
     w[c1] *= (m[..., 2, 1][c1] - m[..., 1, 2][c1]).sign()
     y[c1] *= (m[..., 1, 0][c1] + m[..., 0, 1][c1]).sign()
     z[c1] *= (m[..., 0, 2][c1] + m[..., 2, 0][c1]).sign()
 
     # Only modify quaternions where y > w, x, z.
-    c2 = (y >= w) & (y >= x) & (y >= z)
+    c2 = largest == 2
     w[c2] *= (m[..., 0, 2][c2] - m[..., 2, 0][c2]).sign()
     x[c2] *= (m[..., 1, 0][c2] + m[..., 0, 1][c2]).sign()
     z[c2] *= (m[..., 2, 1][c2] + m[..., 1, 2][c2]).sign()
 
     # Only modify quaternions where z > w, x, y.
-    c3 = (z >= w) & (z >= x) & (z >= y)
+    c3 = largest == 3
     w[c3] *= (m[..., 1, 0][c3] - m[..., 0, 1][c3]).sign()
     x[c3] *= (m[..., 2, 0][c3] + m[..., 0, 2][c3]).sign()
     y[c3] *= (m[..., 2, 1][c3] + m[..., 1, 2][c3]).sign()
