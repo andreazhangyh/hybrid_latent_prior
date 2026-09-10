@@ -1,0 +1,3 @@
+defaults:
+  - /train/imitation/HybridDistill@_here_
+  - _self_

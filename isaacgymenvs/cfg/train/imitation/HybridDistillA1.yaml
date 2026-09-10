@@ -1,0 +1,7 @@
+defaults:
+  - /train/imitation/HybridDistill@_here_
+  - _self_
+params:
+  config:
+    latent_align:
+      direction: post_to_prior

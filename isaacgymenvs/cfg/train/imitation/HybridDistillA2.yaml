@@ -1,0 +1,10 @@
+defaults:
+  - /train/imitation/HybridDistill@_here_
+  - _self_
+params:
+  config:
+    # Initial equal-variance scale: 2 * 0.3**2 * the A0 MSE coefficient.
+    vae_kl_loss_coef: ${resolve_default:0.018,${....vae_kl_loss_coef}}
+    latent_align:
+      loss_type: gaussian_kl
+      learn_prior_std: true
