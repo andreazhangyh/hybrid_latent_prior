@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Local training and evaluation outputs
+artifacts/
+**/runs/
+**/train_logs/
+**/pretrained_weights/
+
+# Generated LaFAN/AMP data and local motion-link caches
+isaacgymenvs/tasks/amp/poselib/data/AMP/
+isaacgymenvs/tasks/amp/poselib/data/LAFAN/
+isaacgymenvs/tasks/amp/poselib/data/amp_humanoid_tpose.npy
+isaacgymenvs/tasks/amp/poselib/data/lafan_tpose.npy
+assets/amp/motions/.cache/
