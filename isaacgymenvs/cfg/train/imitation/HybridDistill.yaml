@@ -126,6 +126,9 @@ params:
       direction: bidirectional
       learn_prior_std: false
       reduction: sum
+      posterior_std: 0.3
+      prior_logstd_min: -5.0
+      prior_logstd_max: 1.0
     # Alignment weight and schedule continue to use vae_kl_* above.
     expert_loss_coef: ${resolve_default:10.0,${....expert_loss_coef}}
     

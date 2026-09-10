@@ -54,6 +54,7 @@ class cVAEPlayerContinuous(common_player.CommonPlayer):
         if self._enc_type in ["continuous", "hybrid"]:
             self._enc_scale = config.get("enc_scale", 0.3)
             self._continuous_enc_style = config.get("continuous_enc_style", "standard")
+            self._latent_align_config = config.get("latent_align", None)
         if self._enc_type in ["discrete", "hybrid"]:
             self._code_num = config.get("code_num", 512)
             self._quant_type = config.get("quant_type", "basic")
@@ -122,6 +123,7 @@ class cVAEPlayerContinuous(common_player.CommonPlayer):
         if self._enc_type in ["continuous", "hybrid"]:
             config["enc_scale"] = self._enc_scale
             config["continuous_enc_style"] = self._continuous_enc_style
+            config["latent_align"] = self._latent_align_config
         if self._enc_type in ["discrete", "hybrid"]:
             config["code_num"] = self._code_num
             config["quant_type"] = self._quant_type

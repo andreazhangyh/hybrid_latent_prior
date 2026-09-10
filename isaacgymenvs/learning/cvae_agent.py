@@ -823,6 +823,16 @@ class cVAEAgent(common_agent.CommonAgent):
         return
 
     def _log_latent_align_info(self, train_info, frame):
+        cfg = getattr(self, "_latent_align_config", None) or {}
+        if not getattr(self, "_latent_align_config_logged", False):
+            self.writer.add_text("latent_align/config", str(dict(cfg)), frame)
+            self._latent_align_config_logged = True
+        if self.vae_kl_loss_coef is not None:
+            self.writer.add_scalar("latent_align/coef", self.vae_kl_loss_coef, frame)
+            if "latent_align_loss" in train_info:
+                raw = torch_ext.mean_list(train_info["latent_align_loss"]).item()
+                self.writer.add_scalar("latent_align/weighted_loss", raw * self.vae_kl_loss_coef, frame)
+        self.writer.add_scalar("latent_align/posterior_std", cfg.get("posterior_std", 0.3), frame)
         for key, values in train_info.items():
             if key.startswith("latent_align_"):
                 tag = "latent_align/" + key[len("latent_align_"):]

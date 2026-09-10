@@ -22,7 +22,7 @@ def seed(value=42):
     torch.manual_seed(value)
 
 
-def make_model(direction=None, full=False):
+def make_model(direction=None, full=False, alignment=None):
     with (ROOT / "isaacgymenvs/cfg/train/imitation/HybridDistill.yaml").open() as f:
         params = yaml.safe_load(f)["params"]["network"]
     if not full:
@@ -36,6 +36,8 @@ def make_model(direction=None, full=False):
                   quant_type="rvq", num_quants=8, amp_input_shape=(210,))
     if direction is not None:
         config["latent_align"] = dict(direction=direction)
+    if alignment is not None:
+        config["latent_align"] = alignment
     net = builder.build("cvae_amp", **config)
     return ModelcVAEAMPContinuous.Network(net, obs_shape=(105,),
                                         normalize_input=full, normalize_value=full,

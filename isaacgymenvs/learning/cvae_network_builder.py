@@ -26,6 +26,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import math
 import numpy as np
 import torch
 import torch.nn as nn
@@ -42,7 +43,14 @@ DEFAULT_LATENT_ALIGN_CONFIG = {
     "direction": "bidirectional",
     "learn_prior_std": False,
     "reduction": "sum",
+    "posterior_std": 0.3,
+    "prior_logstd_min": -5.0,
+    "prior_logstd_max": 1.0,
 }
+
+
+def diagonal_gaussian_kl(q_loc, q_std, p_loc, p_std):
+    return kl_divergence(Normal(q_loc, q_std), Normal(p_loc, p_std)).sum(dim=-1)
 
 
 def _get_config_value(config, key, default):
@@ -123,6 +131,8 @@ class cVAEBuilder(network_builder.A2CBuilder):
                 cnn_init = self.init_factory.create(**self.cnn["initializer"])
 
             for m_name, m in self.named_modules():
+                if m_name == "encoder._prior_logstd_net":
+                    continue
                 if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
                     cnn_init(m.weight)
                     if getattr(m, "bias", None) is not None:
@@ -499,6 +509,13 @@ class ContinuousEncoder(nn.Module):
                 )
         # init
         self.init_params()
+        if self._latent_align_config["learn_prior_std"]:
+            if self._style not in ("quantcond", "quantdirect"):
+                raise ValueError("Gaussian alignment requires quantcond or quantdirect")
+            # Preserve the initialization RNG stream of existing network branches.
+            with torch.random.fork_rng(devices=[]):
+                self._prior_logstd_net = nn.Linear(units[-1], latent_dim)
+            self._init_prior_logstd()
         if self._style == "statecond":
             with torch.no_grad():
                 self._post_scale_net.weight.uniform_(-1.0, 0.0)
@@ -575,11 +592,24 @@ class ContinuousEncoder(nn.Module):
             else:
                 post_z = post_loc
                 prior_z = prior_loc
-                kl_loss = self._calc_latent_align_loss(post_loc, prior_loc)
+                prior_std = None
+                if self._latent_align_config["loss_type"] == "gaussian_kl":
+                    prior_logstd, prior_std = self._calc_prior_std(prior_feat)
+                kl_loss = self._calc_latent_align_loss(post_loc, prior_loc, prior_std)
 
         out_dict = dict(post_z=post_z, prior_z=prior_z, kl_loss=kl_loss, post_mu=post_loc, prior_mu=prior_loc)
         if self._style in ["quantcond", "quantdirect"]:
             out_dict.update(self._calc_latent_align_stats(post_loc, prior_loc, indices, kl_loss))
+            if prior_std is not None:
+                with torch.no_grad():
+                    cfg = self._latent_align_config
+                    out_dict.update({
+                        "latent_align_prior_std_mean": prior_std.mean(),
+                        "latent_align_prior_std_min": prior_std.min(),
+                        "latent_align_prior_std_max": prior_std.max(),
+                        "latent_align_logstd_lower_fraction": (prior_logstd <= cfg["prior_logstd_min"]).float().mean(),
+                        "latent_align_logstd_upper_fraction": (prior_logstd >= cfg["prior_logstd_max"]).float().mean(),
+                    })
         if self._style in ["quantcond", "quantdirect"]:
             out_dict.update(dict(
                 indices=indices,
@@ -615,21 +645,72 @@ class ContinuousEncoder(nn.Module):
         parsed = {}
         for key, default in DEFAULT_LATENT_ALIGN_CONFIG.items():
             parsed[key] = _get_config_value(config, key, default)
-        if parsed["loss_type"] != "mse":
-            raise NotImplementedError("Only latent_align.loss_type=mse is supported in Phase 1")
+        if parsed["loss_type"] not in ("mse", "gaussian_kl"):
+            raise ValueError("latent_align.loss_type must be mse or gaussian_kl")
         if parsed["direction"] not in ["bidirectional", "post_to_prior"]:
             raise ValueError("latent_align.direction must be 'bidirectional' or 'post_to_prior'")
-        if parsed["learn_prior_std"]:
-            raise NotImplementedError("latent_align.learn_prior_std is reserved for a later phase")
+        if bool(parsed["learn_prior_std"]) != (parsed["loss_type"] == "gaussian_kl"):
+            raise ValueError("learn_prior_std must be true exactly for gaussian_kl")
+        if not math.isfinite(parsed["posterior_std"]) or parsed["posterior_std"] <= 0:
+            raise ValueError("posterior_std must be finite and positive")
+        lower, upper = parsed["prior_logstd_min"], parsed["prior_logstd_max"]
+        if not (-20 <= lower < upper <= 10):
+            raise ValueError("Require -20 <= prior_logstd_min < prior_logstd_max <= 10 for FP32")
+        if not lower < math.log(parsed["posterior_std"]) < upper:
+            raise ValueError("Initial posterior logstd must lie inside prior clamp bounds")
         if parsed["reduction"] != "sum":
             raise NotImplementedError("Only latent_align.reduction=sum is supported in Phase 1")
         return parsed
 
-    def _calc_latent_align_loss(self, post_loc, prior_loc):
+    def _calc_prior_std(self, prior_feat):
+        with torch.cuda.amp.autocast(enabled=False):
+            head = self._prior_logstd_net
+            raw = F.linear(prior_feat.float(), head.weight.float(), head.bias.float())
+            cfg = self._latent_align_config
+            logstd = raw.clamp(cfg["prior_logstd_min"], cfg["prior_logstd_max"])
+            return raw, logstd.exp() + 1e-6
+
+    def _calc_latent_align_loss(self, post_loc, prior_loc, prior_std=None):
         align_target = post_loc
         if self._latent_align_config["direction"] == "post_to_prior":
             align_target = align_target.detach()
-        return (align_target - prior_loc).pow(2).sum(dim=-1)
+        if self._latent_align_config["loss_type"] == "mse":
+            return (align_target - prior_loc).pow(2).sum(dim=-1)
+        if prior_std is None:
+            raise ValueError("Gaussian alignment requires prior_std")
+        with torch.cuda.amp.autocast(enabled=False):
+            q_loc = align_target.float()
+            q_std = torch.full_like(q_loc, self._latent_align_config["posterior_std"])
+            return diagonal_gaussian_kl(q_loc, q_std, prior_loc.float(), prior_std.float())
+
+    def _init_prior_logstd(self):
+        nn.init.zeros_(self._prior_logstd_net.weight)
+        nn.init.constant_(self._prior_logstd_net.bias, math.log(self._latent_align_config["posterior_std"]))
+
+    def _save_to_state_dict(self, destination, prefix, keep_vars):
+        super()._save_to_state_dict(destination, prefix, keep_vars)
+        if hasattr(destination, "_metadata"):
+            destination._metadata[prefix[:-1]]["latent_align"] = dict(self._latent_align_config)
+
+    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
+                              missing_keys, unexpected_keys, error_msgs):
+        saved = local_metadata.get("latent_align")
+        cfg = self._latent_align_config
+        head_keys = [prefix + "_prior_logstd_net." + name for name in ("weight", "bias")]
+        present = [key in state_dict for key in head_keys]
+        if cfg["learn_prior_std"] and not any(present) and not (saved and saved["learn_prior_std"]):
+            # Only complete legacy/MSE head absence is an allowed migration.
+            self._init_prior_logstd()
+            for key, value in zip(head_keys, (self._prior_logstd_net.weight, self._prior_logstd_net.bias)):
+                state_dict[key] = value.detach().clone()
+        if not cfg["learn_prior_std"] and (any(present) or (saved and saved["learn_prior_std"])):
+            error_msgs.append("Cannot load Gaussian alignment checkpoint into MSE model")
+        if saved and saved["learn_prior_std"] and cfg["learn_prior_std"]:
+            for key in ("posterior_std", "prior_logstd_min", "prior_logstd_max"):
+                if saved[key] != cfg[key]:
+                    error_msgs.append("Gaussian alignment checkpoint configuration mismatch: " + key)
+        super()._load_from_state_dict(state_dict, prefix, local_metadata, strict,
+                                     missing_keys, unexpected_keys, error_msgs)
 
     def _calc_latent_align_stats(self, post_loc, prior_loc, indices, align_loss):
         with torch.no_grad():
@@ -660,6 +741,8 @@ class ContinuousEncoder(nn.Module):
 
     def init_params(self):
         for m in self.modules():
+            if m is getattr(self, "_prior_logstd_net", None):
+                continue
             if isinstance(m, nn.Linear):
                 self._initializer(m.weight)
                 if getattr(m, "bias", None) is not None:
@@ -813,5 +896,3 @@ class ValueNet(nn.Module):
                 if getattr(m, "bias", None) is not None:
                     torch.nn.init.zeros_(m.bias)
         return
-
-
