@@ -66,20 +66,31 @@ tracking、navigation 和 in-betweening 模型。
 
 ## 3. 获取 LaFAN1 BVH 数据
 
-从官方仓库获取原始 LaFAN1 数据：
+从官方仓库获取原始 LaFAN1 数据。官方仓库使用 Git LFS 保存
+`lafan1/lafan1.zip`，因此必须安装 Git LFS 并执行 `git lfs pull`；仅普通 `git clone`
+可能只得到一个很小的 LFS 指针文件，而不是实际数据。
 
 <https://github.com/ubisoft/ubisoft-laforge-animation-dataset>
 
 ```bash
+# Ubuntu/Debian 示例；如果系统已有 git-lfs，可跳过安装步骤。
+sudo apt-get update
+sudo apt-get install -y git-lfs
+git lfs install
+
 cd "$REPO"
 git clone --depth 1 \
   https://github.com/ubisoft/ubisoft-laforge-animation-dataset.git \
   /tmp/ubisoft-laforge-animation-dataset
+cd /tmp/ubisoft-laforge-animation-dataset
+git lfs pull
+
+mkdir -p /tmp/lafan1-bvh
+unzip -q lafan1/lafan1.zip -d /tmp/lafan1-bvh
 
 mkdir -p "$REPO/isaacgymenvs/tasks/amp/poselib/lafan1/data"
-rsync -a --include='*/' --include='*.bvh' --exclude='*' \
-  /tmp/ubisoft-laforge-animation-dataset/lafan1/data/ \
-  "$REPO/isaacgymenvs/tasks/amp/poselib/lafan1/data/"
+find /tmp/lafan1-bvh -type f -name '*.bvh' -exec cp {} \
+  "$REPO/isaacgymenvs/tasks/amp/poselib/lafan1/data/" \;
 ```
 
 确认 BVH 数量：
@@ -89,8 +100,8 @@ find "$REPO/isaacgymenvs/tasks/amp/poselib/lafan1/data" \
   -type f -name '*.bvh' | wc -l
 ```
 
-当前项目预期约 77 个 BVH 文件。若官方仓库的目录结构发生变化，请将所有 LaFAN1
-`.bvh` 文件放入上面的 `lafan1/data` 目录。
+当前项目预期 77 个 BVH 文件。若官方仓库的 zip 内部目录结构发生变化，只要将其中所有
+LaFAN1 `.bvh` 文件放入上面的 `lafan1/data` 目录即可。
 
 ## 4. 生成 LaFAN NPZ 和 AMP motion
 
